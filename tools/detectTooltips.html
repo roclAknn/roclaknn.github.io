@@ -35,11 +35,11 @@
     <tr><th></th><th colspan="2">外枠(1本目)</th><th colspan="2">内枠(2本目)</th></tr>
     <tr><th>辺</th><th>色</th><th>許容差</th><th>色</th><th>許容差</th></tr>
     <tr><th>上辺</th>
-      <td><input type="color" id="A_top" value="#232B34"></td><td><input type="number" id="tA_top" value="80" min="0" max="255"></td>
-      <td><input type="color" id="B_top" value="#6C8693"></td><td><input type="number" id="tB_top" value="80" min="0" max="255"></td></tr>
+      <td><input type="color" id="A_top" value="#232B34"></td><td><input type="number" id="tA_top" value="100" min="0" max="255"></td>
+      <td><input type="color" id="B_top" value="#6C8693"></td><td><input type="number" id="tB_top" value="100" min="0" max="255"></td></tr>
     <tr><th>下辺</th>
-      <td><input type="color" id="A_bottom" value="#232B34"></td><td><input type="number" id="tA_bottom" value="80" min="0" max="255"></td>
-      <td><input type="color" id="B_bottom" value="#47525A"></td><td><input type="number" id="tB_bottom" value="80" min="0" max="255"></td></tr>
+      <td><input type="color" id="A_bottom" value="#232B34"></td><td><input type="number" id="tA_bottom" value="100" min="0" max="255"></td>
+      <td><input type="color" id="B_bottom" value="#47525A"></td><td><input type="number" id="tB_bottom" value="100" min="0" max="255"></td></tr>
     <tr><th>左辺</th>
       <td><input type="color" id="A_left" value="#232B34"></td><td><input type="number" id="tA_left" value="80" min="0" max="255"></td>
       <td><input type="color" id="B_left" value="#47525A"></td><td><input type="number" id="tB_left" value="80" min="0" max="255"></td></tr>
@@ -97,7 +97,16 @@ function detectNow(debug) {
   }));
   const res = DetectTooltips.run(d, W, H, { sides, peak: +$('peak').value, minLen: +$('minLen').value || 200,
     cover: (+$('cover').value || 80) / 100, debug });
-  return { res, ms: performance.now() - t0, W, H };
+  const tooltipTypes = res.rects.map(rect => {
+    if (EquipmentTooltipChecker.run(d, W, H, rect)){
+      return "装備品";
+    } else if (ItemTooltipChecker.run(d, W, H, rect)){
+      return "アイテム";
+    }
+    return "不明";
+  });
+  console.log("tooltipTypes", tooltipTypes);
+  return { res, tooltipTypes, ms: performance.now() - t0, W, H };
 }
 
 /*
@@ -124,9 +133,14 @@ function detectNow(debug) {
   console.log(res.rects); // rects.x, y, w, h
 */
 
+const lineColorts = {
+    "装備品": "red",
+    "アイテム": "orange",
+    "不明": "white",
+  };
 function run() {
   if (!bmp || capturing) return;   // キャプチャ中は毎フレーム最新の設定で検出するので何もしない
-  const { res, ms, W, H } = detectNow($('dbg').checked);
+  const { res, tooltipTypes, ms, W, H } = detectNow($('dbg').checked);
   const rects = res.rects;
 
   octx.clearRect(0, 0, ov.width, ov.height);
@@ -142,9 +156,10 @@ function run() {
     why.textContent = `候補: 上辺 ${res.tops.length} / 下辺 ${res.bots.length} / 左辺 ${res.lefts.length} / 右辺 ${res.rights.length}\n` +
       (res.log.length ? res.log.join('\n') : '(上辺候補がありません)');
   } else why.style.display = 'none';
-  octx.strokeStyle = 'red'; octx.lineWidth = lw;
+  octx.lineWidth = lw;
   const box = $('results'); box.innerHTML = '';
   rects.forEach((r, i) => {
+    octx.strokeStyle = lineColorts[tooltipTypes[i]];
     octx.strokeRect(r.x - 0.5, r.y - 0.5, r.w + 1, r.h + 1);
     const c = document.createElement('canvas');
     c.width = r.w; c.height = r.h;
@@ -211,7 +226,7 @@ function frame(now) {
     if (src.width !== W || src.height !== H) { src.width = ov.width = W; src.height = ov.height = H; }
     sctx.drawImage(vid, 0, 0);
     const debug = $('dbg').checked;
-    const { res, ms } = detectNow(debug);
+    const { res, tooltipTypes, ms } = detectNow(debug);
     octx.clearRect(0, 0, W, H);
     const lw = Math.max(2, W / 500);
     if (debug) {
@@ -230,9 +245,12 @@ function frame(now) {
     } else {
       $('why').style.display = 'none';
     }
-    // 候補線の上に、採用された矩形を赤枠で重ねる
-    octx.strokeStyle = 'red'; octx.lineWidth = lw;
-    res.rects.forEach(r => octx.strokeRect(r.x - 0.5, r.y - 0.5, r.w + 1, r.h + 1));
+    // 候補線の上に、採用された矩形を重ねる
+    octx.lineWidth = lw;
+    res.rects.forEach((r, i) => {
+      octx.strokeStyle = lineColorts[tooltipTypes[i]];
+      octx.strokeRect(r.x - 0.5, r.y - 0.5, r.w + 1, r.h + 1);
+    });
     $('status').textContent = `キャプチャ中 ${W}x${H} / 検出 ${res.rects.length} 件 / ${ms.toFixed(1)} ms` +
       (debug ? ' / 辺候補表示中' : '');
   }

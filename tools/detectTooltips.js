@@ -1,10 +1,6 @@
 /*
-  // メイプルの装備ツールチップの切り出し用
-  // とりあえず枠線から判定し、余分な候補を除外せずに範囲のリストを返すだけ
-  
-  // 装備ツールチップかどうかの正確な判定
-  // 取得した範囲でクロップして、文字などで追加で判定して絞る
-  // たとえば戦闘力増加量の文字はMSPゴシック 12px #85919F
+  // メイプルの装備ツールチップの切り出し用（曖昧判定）
+  // とりあえず枠線から判定し、余分な候補を除外せずに範囲の候補リストを返すだけ
   
   // 利用例: const result = DetectTooltips.run(imageData.data, width, height, options);
   // result.rects / tops / bots / lefts / rights / log を返す。
@@ -29,7 +25,7 @@
   const d = sctx.getImageData(0, 0, W, H).data;
   const sides = ['top', 'bottom', 'left', 'right'].map(k => ({
     a: [35, 43, 52], // 外枠の色(共通)
-    b: (k == "top" ? [108, 134, 147] : [71, 82, 90]), // 内枠の色(topのみ異なる)
+    b: (k == "top" ? [96, 120, 133] : [71, 82, 90]), // 内枠の色(topのみ異なる)
     tolA: 80, // 閾値
     tolB: 50,
   }));
@@ -39,15 +35,29 @@
   const debug = false;
   const res = DetectTooltips.run(d, W, H, {sides, peak, minLen, cover, debug});
   console.log(res.rects); // rects.x, y, w, h
+
+  // 装備品以外
+    const sides = ['top', 'bottom', 'left', 'right'].map(k => ({
+      a: [36, 43, 52], // 外枠の色(共通)
+      b: (k == "top" ? [83, 104, 116] : [70, 83, 91]), // 内枠の色(topのみ異なる)
+    }));
+  // 装備品
+    const sides = ['top', 'bottom', 'left', 'right'].map(k => ({
+      a: [35, 43, 52], // 外枠の色(共通)
+      b: (k == "top" ? [83～108, 105～134, 119～147] : [71, 82, 90]), // 内枠の色(topのみ異なる)
+    }));
+
+      
+
 */
 
 class DetectTooltips {
   static defaultOptions = {
-    sides: ['top', 'bottom', 'left', 'right'].map(k => ({
+    sides: ['top', 'bottom', 'left', 'right'].map((k, i) => ({
       a: [35, 43, 52], // 外枠の色(共通)
-      b: (k == "top" ? [108, 134, 147] : [71, 82, 90]), // 内枠の色(topのみ異なる)
-      tolA: 80, // 閾値
-      tolB: 80,
+      b: (i == 0 ? [96, 120, 133] : [71, 82, 90]), // 内枠の色(topのみ異なる)
+      tolA: [100, 100, 80, 80][i], // 閾値
+      tolB: [100, 100, 80, 80][i],
     })),
     peak: 5,
     minLen: 200,
@@ -58,7 +68,7 @@ class DetectTooltips {
   };
   static run(d, W, H, o = {}) {
     o = {...this.defaultOptions, ...o};
-    const MINLEN = o.minLen, GAP = 2, MINH = 20, CUT = 10; // CUT: 角の欠け・ずれの許容px
+    const MINLEN = o.minLen, GAP = 2, MINH = 100, CUT = 10; // CUT: 角の欠け・ずれの許容px
     const N = W * H, W4 = W * 4;
     const BIT_TOP = 1, BIT_BOT = 2, BIT_LEFT = 4, BIT_RIGHT = 8;
     const peak3 = o.peak * 3, MINSTEP3 = 8 * 3;
@@ -70,7 +80,7 @@ class DetectTooltips {
     const sameA = [1, 2, 3].every(k => aR[k] === aR[0] && aG[k] === aG[0] && aB[k] === aB[0] && tA2[k] === tA2[0]);
     const off = [W4, -W4, 4, -4];   // 各辺で「内側」に向かうバイトオフセット(上辺は下へ、下辺は上へ、左辺は右へ、右辺は左へ)
 
-    // 1) 全画素を1回走査。各辺について 外枠色の画素 p → 内枠色の画素 q1(p より明るい) → 本体 q2(q1 より peak 以上暗い)
+    // 1) 全画素を1回走査。各辺について 外枠色の画素 p → 内枠色の画素 q1 → 本体 q2(q1 より peak 以上暗い)
     //    の断面になっていればビットを立てる
     const bits = new Uint8Array(N);
     for (let y = 0; y < H; y++) {
@@ -235,4 +245,341 @@ class DetectTooltips {
     return { rects, tops, bots, lefts, rights, log };
   }
 }
-// ==CORE-END==
+
+
+/*
+  // 範囲がアイテムツールチップかどうかを判定する
+  // 装備かどうかなど細分化は別判定
+*/
+class ItemTooltipChecker {
+  static WIDTH = 120;
+  static HEIGHT = 3;
+
+  // RGB各チャンネルの許容差（個別設定）
+
+  static defaultOptions = {
+    topColor: [0x23, 0x29, 0x30],    // #232930
+    bottomColor: [0x35, 0x42, 0x49], // #354249
+    topTol: 20,
+    bottomTol: 50,
+  };
+
+  /**
+   * アイテムツールチップかどうかを判定する。
+   * ツールチップ内のアイテム名下のセパレート線で判別
+   * @param {Uint8ClampedArray|Uint8Array} src 元画像のRGBA配列
+   * @param {number} srcW 元画像の幅
+   * @param {number} srcH 元画像の高さ
+   * @param {{x:number, y:number, w:number, h:number}} rect 探査対象の矩形（絶対座標）
+   * @returns {boolean}
+   */
+  static run(src, srcW, srcH, rect, o = {}) {
+    // rect内の相対座標 x:10～w+60, y:10～200
+    // セパレータは左6pxから右-5pxまで伸びる縦3px線
+    // カーソルと重なっている場合のために広めに探査
+    // 枠線を誤判定しないようにy座標の開始位置も下げる
+
+    o = {...this.defaultOptions, ...o};
+    const x0 = Math.max(0, Math.ceil(rect.x + 10));
+    const y0 = Math.max(0, Math.ceil(rect.y + 10));
+
+    const x1 = Math.min(
+      srcW,
+      Math.floor(rect.x + Math.min(rect.w, this.WIDTH+61))
+    );
+
+    const y1 = Math.min(
+      srcH,
+      Math.floor(rect.y + Math.min(rect.h, 201))
+    );
+
+    // 20x3の矩形が収まる必要がある
+    const maxX = x1 - this.WIDTH;
+    const maxY = y1 - this.HEIGHT;
+
+    if (maxX < x0 || maxY < y0) return false;
+
+    const {topColor, bottomColor, topTol, bottomTol} = o;
+
+    // RGB各チャンネルを比較
+    const matches = (i, color, tolerance) => {
+      const diff2s = color.map((cl, ii) => (src[i+ii] - cl) ** 2 );
+      const tol2 = tolerance ** 2;
+      return diff2s[0] + diff2s[1] + diff2s[2] <= tol2;
+    };
+    // 候補位置を走査
+    for (let y = y0; y <= maxY; y++) {
+      for (let x = x0; x <= maxX; x++) {
+        let valid = true;
+
+        // 上段：#232930
+        let i = (y * srcW + x) * 4;
+
+        for (let dx = 0; dx < this.WIDTH; dx++) {
+          if (!matches(i + dx * 4, topColor, topTol)) {
+            valid = false;
+            break;
+          }
+        }
+
+        if (!valid) continue;
+
+        // 下2段：#354249
+        for (let dy = 1; dy <= 2 && valid; dy++) {
+          i = ((y + dy) * srcW + x) * 4;
+
+          for (let dx = 0; dx < this.WIDTH; dx++) {
+            if (!matches(i + dx * 4, bottomColor, bottomTol)) {
+              valid = false;
+              break;
+            }
+          }
+        }
+
+        if (valid) return true;
+      }
+    }
+
+    return false;
+  }
+}
+
+
+/*
+  // 範囲が装備ツールチップであるか判定
+  // 元画像＋ツールチップRectから文字探査して判定する
+*/ 
+class EquipmentTooltipChecker {
+  static FONT = "ＭＳ Ｐゴシック";
+  static PIXEL = 12;
+  static COLOR = "#85919F";
+
+  // クラス初期化時に生成し、以降は再利用
+  // "戦闘力増加量"の文字にマウスが重なっている場合のために2文字判定
+  static TEMPLATES = [
+    createTextRGBA("戦", this.FONT, this.PIXEL, this.COLOR),
+    createTextRGBA("量", this.FONT, this.PIXEL, this.COLOR),
+  ];
+
+  static defaultOptions = {
+    colorTolerance: 12, // 色幅の許容範囲
+    maxMismatchRate: 0.2, // ノイズなどによる不一致パターンの許容割合
+    maxBorderColorRate: 0.08, // 文字の縁取り部分が文字色と一致するパターンの許容割合 
+  };
+
+  // rect: DetectTooltips.run() が返す矩形 {x, y, w, h}
+  // true: 「戦」または「量」を検出
+  static run(src, srcW, srcH, rect, o = {}) {
+    o = {...this.defaultOptions, ...o};
+
+    const area = {
+      x: rect.x,
+      y: rect.y,
+      w: rect.w,
+      h: Math.min(rect.h, 200),
+    };
+
+    for (const template of this.TEMPLATES) {
+      if (
+        findTextRGBA(
+          src, srcW, srcH,
+          template, area, o,
+        )
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}
+
+/**
+ * 文字列をRGBAテンプレートに変換する汎用関数。
+ * 文字の一致判定画素と、文字の外側1pxの縁取り画素を作成する。
+ */
+function createTextRGBA(text, font, pixel, color) {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+  ctx.font = `${pixel}px "${font}"`;
+  ctx.textBaseline = "alphabetic";
+
+  const metrics = ctx.measureText(text);
+  const width = Math.max(1, Math.ceil(metrics.width) + 2);
+  const height = pixel + 6;
+
+  canvas.width = width;
+  canvas.height = height;
+
+  // canvasサイズ変更後に設定し直す
+  ctx.font = `${pixel}px "${font}"`;
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = color;
+  ctx.fillText(text, 1, pixel + 2);
+
+  const data = ctx.getImageData(0, 0, width, height).data;
+  const match = [];
+  const mask = new Uint8Array(width * height);
+
+  // 文字形状のマスク。アンチエイリアス部分も形状に含める
+  for (let i = 0; i < width * height; i++) {
+    if (data[i * 4 + 3] > 16) {
+      mask[i] = 1;
+    }
+  }
+
+  // 従来の一致判定画素：十分に不透明な画素だけを使用
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const pos = y * width + x;
+      const i = pos * 4;
+
+      if (data[i + 3] >= 245) {
+        match.push([
+          x, y,
+          data[i], data[i + 1], data[i + 2]
+        ]);
+      }
+    }
+  }
+
+  // 文字色と同じ塗りつぶしを除外するために文字形状の外側1pxを抽出。
+  // 8方向に隣接する文字形状の外側で、テンプレート画像内の画素だけを使う。
+  const border = [];
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const pos = y * width + x;
+
+      if (mask[pos]) continue;
+
+      let adjacent = false;
+
+      for (let dy = -1; dy <= 1 && !adjacent; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+
+          const nx = x + dx;
+          const ny = y + dy;
+
+          if (
+            nx >= 0 && nx < width &&
+            ny >= 0 && ny < height &&
+            mask[ny * width + nx]
+          ) {
+            adjacent = true;
+            break;
+          }
+        }
+      }
+
+      if (adjacent) {
+        border.push([x, y]);
+      }
+    }
+  }
+
+  return { width, height, match, border };
+}
+
+
+/**
+ * RGBA配列から文字テンプレートを探査する汎用関数。
+ *
+ * src: 元画像のRGBA配列
+ * srcW, srcH: 元画像の幅・高さ
+ * template: createTextRGBA() の戻り値
+ * rect: { x, y, w, h }。元画像上の絶対座標
+ * options:
+ *   colorTolerance: RGB各チャンネルの許容差
+ *   maxMismatchRate: 文字画素の不一致許容率
+ *   maxBorderColorRate: 縁取りに文字色が現れる割合の許容値
+ *   minPoints: 文字画素の最低数
+ */
+function findTextRGBA(src, srcW, srcH, template, rect, options = {}) {
+  const colorTolerance = options.colorTolerance ?? 18;
+  const maxMismatchRate = options.maxMismatchRate ?? 0.12;
+  const maxBorderColorRate = options.maxBorderColorRate ?? 0.08;
+  const minPoints = options.minPoints ?? 5;
+
+  const match = template.match;
+  const border = template.border;
+
+  if (match.length < minPoints || border.length === 0) {
+    return false;
+  }
+
+  const x0 = Math.max(0, Math.ceil(rect.x));
+  const y0 = Math.max(0, Math.ceil(rect.y));
+  const x1 = Math.min(srcW, Math.floor(rect.x + rect.w));
+  const y1 = Math.min(
+    srcH,
+    Math.floor(rect.y + Math.min(rect.h, 200))
+  );
+
+  const maxX = x1 - template.width;
+  const maxY = y1 - template.height;
+
+  if (maxX < x0 || maxY < y0) return false;
+
+  const tol = colorTolerance;
+  const maxMismatch = Math.floor(match.length * maxMismatchRate);
+  const maxBorderColor = Math.floor(
+    border.length * maxBorderColorRate
+  );
+
+  // 候補画素が指定色に近いか判定
+  function isTargetColor(i) {
+    return (
+      Math.abs(src[i]     - 133) <= tol &&
+      Math.abs(src[i + 1] - 145) <= tol &&
+      Math.abs(src[i + 2] - 159) <= tol
+    );
+  }
+
+  // 左上座標を走査。元画像のRGBA配列を直接参照する。
+  for (let y = y0; y <= maxY; y++) {
+    for (let x = x0; x <= maxX; x++) {
+      const base = y * srcW + x;
+      let mismatch = 0;
+
+      // 1. 文字画素の一致判定（従来処理）
+      for (let k = 0; k < match.length; k++) {
+        const p = match[k];
+        const i = (base + p[1] * srcW + p[0]) * 4;
+
+        if (
+          Math.abs(src[i]     - p[2]) > tol ||
+          Math.abs(src[i + 1] - p[3]) > tol ||
+          Math.abs(src[i + 2] - p[4]) > tol
+        ) {
+          mismatch++;
+          if (mismatch > maxMismatch) break;
+        }
+      }
+
+      if (mismatch > maxMismatch) continue;
+
+      // 2. 文字の外側1pxが指定色ではないことを確認
+      let borderColorCount = 0;
+
+      for (let k = 0; k < border.length; k++) {
+        const p = border[k];
+        const i = (base + p[1] * srcW + p[0]) * 4;
+
+        if (isTargetColor(i)) {
+          borderColorCount++;
+          if (borderColorCount > maxBorderColor) break;
+        }
+      }
+
+      if (borderColorCount <= maxBorderColor) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
