@@ -105,7 +105,6 @@ function detectNow(debug) {
     }
     return "不明";
   });
-  console.log("tooltipTypes", tooltipTypes);
   return { res, tooltipTypes, ms: performance.now() - t0, W, H };
 }
 
@@ -173,7 +172,7 @@ function run() {
       const u = URL.createObjectURL(b), l = document.createElement('a');
       l.href = u; l.download = `tooltip_${i + 1}.png`; l.click(); setTimeout(() => URL.revokeObjectURL(u), 1000);
     }); };
-    item.append(bgdiv, document.createElement('br'), `#${i + 1}  x=${r.x} y=${r.y} ${r.w}x${r.h}  `, a);
+    item.append(bgdiv, document.createElement('br'), `#${i + 1} ${tooltipTypes[i]} x=${r.x} y=${r.y} ${r.w}x${r.h}  `, a);
     box.appendChild(item);
   });
   $('status').textContent = `${W}x${H} / 検出 ${rects.length} 件 / ${ms.toFixed(1)} ms` +

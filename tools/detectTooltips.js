@@ -1,18 +1,42 @@
 /*
-  // メイプルの装備ツールチップの切り出し用（曖昧判定）
-  // とりあえず枠線から判定し、余分な候補を除外せずに範囲の候補リストを返すだけ
+  // メイプルのアイテム・装備ツールチップのクロップ処理
+  // #1 DetectTooltips.run() #とりあえず枠線から判定し、余分な候補を除外せずに範囲の候補リストを返すだけ
+  // #2.1 EquipmentTooltipChecker.run() #ツールチップ候補に対して文字画像判定で装備か判定
+  // #2.2 ItemTooltipChecker.run() #ツールチップ候補に対してアイコン枠線判定(1辺以上)でアイテムか判定(装備にもマッチする)
+
+  // 汎用画像判定を提供
+  // 汎用文字生成、文字判定処理を提供。ステータス数値のOCRなどに
   
-  // 利用例: const result = DetectTooltips.run(imageData.data, width, height, options);
-  // result.rects / tops / bots / lefts / rights / log を返す。
+  // 使用する場合はItemTooltipCheckerの画像ファイル参照先を変更してください
+  // ローカルでは画像ファイルの読み込みは動きません。装備判定は可能です
+*/
+
+/*
+  // ツールチップの枠線を検出→矩形を作れれば記録して返す
+  // これだけだとほかのUIと干渉した誤検出を含む
+  
+  // 枠の構造(外→内): 外枠(1px) → 内枠(1px) → 本体
+  //   上辺: 外枠が行y、内枠が行y+1   下辺: 外枠が行y、内枠が行y-1
+  //   左辺: 外枠が列x、内枠が列x+1   右辺: 外枠が列x、内枠が列x-1
+  // 辺ごとに外枠色・内枠色・許容差を別々に判定する。
+  
+  // 装備品以外
+    const sides = ['top', 'bottom', 'left', 'right'].map(k => ({
+      a: [36, 43, 52], // 外枠の色(共通)
+      b: (k == "top" ? [83, 104, 116] : [70, 83, 91]), // 内枠の色(topのみ異なる)
+    }));
+  // 装備品
+    const sides = ['top', 'bottom', 'left', 'right'].map(k => ({
+      a: [35, 43, 52], // 外枠の色(共通)
+      b: (k == "top" ? [83～108, 105～134, 119～147] : [71, 82, 90]), // 内枠の色(topのみ異なる)
+    }));
+
+
   // 検出コア。DetectTooltips.run(d, W, H, options) で判定する。d: RGBA配列, W,H: サイズ
   // o.sides: [上,下,左,右] の配列。各要素 { a:[r,g,b], tolA, b:[r,g,b], tolB }
   //   a/tolA: 外枠の色と許容差、 b/tolB: 内枠の色と許容差 (許容差はRGB空間のユークリッド距離)
   // o.peak: 内枠が本体(さらに内側)より明るい量, o.minLen: 最小辺長, o.cover: 辺として認める最小の連続率(0?1), o.debug: 左右の辺候補も返す
   //
-  // 枠の構造(外→内): 外枠(1px) → 内枠(1px) → 本体
-  //   上辺: 外枠が行y、内枠が行y+1   下辺: 外枠が行y、内枠が行y-1
-  //   左辺: 外枠が列x、内枠が列x+1   右辺: 外枠が列x、内枠が列x-1
-  // 辺ごとに外枠色・内枠色・許容差を別々に判定する。
 
   // src: Canvas;
   // sctx: src.getContext('2d', { willReadFrequently: true });
@@ -35,20 +59,7 @@
   const debug = false;
   const res = DetectTooltips.run(d, W, H, {sides, peak, minLen, cover, debug});
   console.log(res.rects); // rects.x, y, w, h
-
-  // 装備品以外
-    const sides = ['top', 'bottom', 'left', 'right'].map(k => ({
-      a: [36, 43, 52], // 外枠の色(共通)
-      b: (k == "top" ? [83, 104, 116] : [70, 83, 91]), // 内枠の色(topのみ異なる)
-    }));
-  // 装備品
-    const sides = ['top', 'bottom', 'left', 'right'].map(k => ({
-      a: [35, 43, 52], // 外枠の色(共通)
-      b: (k == "top" ? [83～108, 105～134, 119～147] : [71, 82, 90]), // 内枠の色(topのみ異なる)
-    }));
-
-      
-
+  
 */
 
 class DetectTooltips {
@@ -56,7 +67,7 @@ class DetectTooltips {
     sides: ['top', 'bottom', 'left', 'right'].map((k, i) => ({
       a: [35, 43, 52], // 外枠の色(共通)
       b: (i == 0 ? [96, 120, 133] : [71, 82, 90]), // 内枠の色(topのみ異なる)
-      tolA: [100, 100, 80, 80][i], // 閾値
+      tolA: [100, 100, 80, 80][i], // 許容差のリスト (許容差はRGB空間のユークリッド距離)
       tolB: [100, 100, 80, 80][i],
     })),
     peak: 5,
@@ -235,115 +246,209 @@ class DetectTooltips {
     candidates.sort((a, b) => b.score - a.score);
     const rects = [];
     for (const c of candidates) {
-      // 既に採用した矩形の内側にある上辺候補は重複として除外する。
-      if (rects.some(r =>
-        (c.y >= r.y && c.y < r.y + r.h && c.top.s >= r.x && c.top.e < r.x + r.w) ||
-        (r.y >= c.y && r.y < c.y + c.h && r.x >= c.x && r.x + r.w - 1 <= c.x + c.w - 1)
-      )) continue;
+      if (rects.some(r => {
+        // 重複する候補を除外
+        if ( c.x === r.x && c.y === r.y && c.w === r.w && c.h === r.h) return true;
+        return false;
+      })) continue;
       rects.push({ x: c.x, y: c.y, w: c.w, h: c.h });
     }
-    return { rects, tops, bots, lefts, rights, log };
+
+    // 他の候補を内包する候補は除外する
+    const filterdRects = rects.filter(r => 
+      !rects.some(r2 => {
+        return r !== r2
+          && r.x <= r2.x
+          && r.y <= r2.y
+          && r2.x + r2.w <= r.x + r.w
+          && r2.y + r2.h <= r.y + r.h
+      })
+    );
+    
+    return { rects: filterdRects, tops, bots, lefts, rights, log };
   }
 }
 
+
+/**
+ * 汎用画像マッチ
+ * 単純な矩形探査
+ * @returns {rects}
+ */
+function match_image(
+  {src, srcW, srcH, srcRect={}},
+  {match, matchW, matchH, matchRect={}},
+  tol=20, cover=0.8, isMulti=false
+){
+  /*
+    範囲から画像マッチ
+    tolは色の許容差 (RGB空間のユークリッド距離)。各色差の2乗の和とtolの2乗を比較
+    coverはミスマッチの許容割合
+    isMulti=falseなら最初にマッチした時点で終了し長さ1のrect配列を返す
+    trueならすべてのマッチを配列に入れて返す
+  */
+  const tol2 = tol * tol;
+  const minX = srcRect.x ?? 0;
+  const minY = srcRect.y ?? 0;
+  const maxX = srcRect.w !== undefined ? minX + srcRect.w - matchW : srcW - matchW;
+  const maxY = srcRect.h !== undefined ? minY + srcRect.h - matchH : srcH - matchH;
+  const mX0 = matchRect.x ?? 0;
+  const mY0 = matchRect.y ?? 0;
+  const mX1 = matchRect.w !== undefined ? mX0 + matchRect.w : matchW;
+  const mY1 = matchRect.h !== undefined ? mY0 + matchRect.h : matchH;
+  const totalPixels = (mX1 - mX0) * (mY1 - mY0);
+  const maxMismatch = Math.floor(totalPixels * (1 - cover));
+  const rects = [];
+
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      let mismatch = 0;
+      let matched = true;
+
+      for (let my = mY0; my < mY1 && matched; my++) {
+        for (let mx = mX0; mx < mX1; mx++) {
+          const srcIdx = ((y + my - mY0) * srcW + (x + mx - mX0)) * 4;
+          const matchIdx = (my * matchW + mx) * 4;
+
+          const dr = src[srcIdx] - match[matchIdx];
+          const dg = src[srcIdx + 1] - match[matchIdx + 1];
+          const db = src[srcIdx + 2] - match[matchIdx + 2];
+
+          if (dr * dr + dg * dg + db * db > tol2) {
+            mismatch++;
+            if (mismatch > maxMismatch) {
+              matched = false;
+              break;
+            }
+          }
+        }
+      }
+
+      if (matched) {
+        rects.push({ x, y, w: matchW, h: matchH });
+        if (!isMulti) return rects;
+      }
+    }
+  }
+
+  return rects;
+}
 
 /*
   // 範囲がアイテムツールチップかどうかを判定する
   // 装備かどうかなど細分化は別判定
 */
 class ItemTooltipChecker {
-  static WIDTH = 120;
-  static HEIGHT = 3;
-
-  // RGB各チャンネルの許容差（個別設定）
+  static initialized = false;
+  static initPromise = null;
 
   static defaultOptions = {
-    topColor: [0x23, 0x29, 0x30],    // #232930
-    bottomColor: [0x35, 0x42, 0x49], // #354249
-    topTol: 20,
-    bottomTol: 50,
+    sides: ['top', 'bottom', 'left', 'right'].map((k, i) => ({
+        path: "https://roclaknn.github.io/tools/images/item_frame_" + k[0] + ".bmp",
+        rgba: [], // pathを読み込み、rgba配列と縦横長をキャッシュ
+        w: 0,
+        h: 0,
+        tol: [15, 15, 15, 15][i], // 各辺の許容差 (RGB空間のユークリッド距離)
+      })),
+    cover: 0.8,
+    matchsidenum: 2, // マッチする辺の目標数（巨大アイコンやカーソルの重なりを考慮する）
   };
 
   /**
+   * 画像ファイルからRGBA配列を読み込んでキャッシュする
+   * @param {string} path 画像ファイルのパス
+   * @returns {Promise<{rgba: Uint8ClampedArray, w: number, h: number}>}
+   */
+  static loadImage(path) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, img.width, img.height);
+        resolve({
+          rgba: imageData.data,
+          w: img.width,
+          h: img.height
+        });
+      };
+      img.onerror = () => reject(new Error(`Failed to load image: ${path}`));
+      img.src = path;
+    });
+  }
+
+  /**
+   * すべての辺の画像を非同期で読み込む
+   * @returns {Promise<void>}
+   */
+  static async init() {
+    if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = (async () => {
+      for (const side of this.defaultOptions.sides) {
+        try {
+          const loaded = await this.loadImage(side.path);
+          side.rgba = loaded.rgba;
+          side.w = loaded.w;
+          side.h = loaded.h;
+        } catch (e) {
+          console.error(`Failed to load ${side.path}:`, e);
+        }
+      }
+      this.initialized = true;
+    })();
+
+    return this.initPromise;
+  }
+
+  /**
    * アイテムツールチップかどうかを判定する。
-   * ツールチップ内のアイテム名下のセパレート線で判別
+   * 各辺がマッチすれば成功
    * @param {Uint8ClampedArray|Uint8Array} src 元画像のRGBA配列
    * @param {number} srcW 元画像の幅
    * @param {number} srcH 元画像の高さ
    * @param {{x:number, y:number, w:number, h:number}} rect 探査対象の矩形（絶対座標）
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
   static run(src, srcW, srcH, rect, o = {}) {
-    // rect内の相対座標 x:10～w+60, y:10～200
-    // セパレータは左6pxから右-5pxまで伸びる縦3px線
-    // カーソルと重なっている場合のために広めに探査
-    // 枠線を誤判定しないようにy座標の開始位置も下げる
-
+    if (!this.initialized) return false; // 未初期化なら不一致扱い
     o = {...this.defaultOptions, ...o};
-    const x0 = Math.max(0, Math.ceil(rect.x + 10));
-    const y0 = Math.max(0, Math.ceil(rect.y + 10));
 
-    const x1 = Math.min(
-      srcW,
-      Math.floor(rect.x + Math.min(rect.w, this.WIDTH+61))
-    );
-
-    const y1 = Math.min(
-      srcH,
-      Math.floor(rect.y + Math.min(rect.h, 201))
-    );
-
-    // 20x3の矩形が収まる必要がある
-    const maxX = x1 - this.WIDTH;
-    const maxY = y1 - this.HEIGHT;
-
-    if (maxX < x0 || maxY < y0) return false;
-
-    const {topColor, bottomColor, topTol, bottomTol} = o;
-
-    // RGB各チャンネルを比較
-    const matches = (i, color, tolerance) => {
-      const diff2s = color.map((cl, ii) => (src[i+ii] - cl) ** 2 );
-      const tol2 = tolerance ** 2;
-      return diff2s[0] + diff2s[1] + diff2s[2] <= tol2;
+    // rect内の探査範囲（相対座標）
+    const searchRect = {
+      x: rect.x + 10,
+      y: rect.y + 10,
+      w: Math.min(rect.w - 20, 100),
+      h: Math.min(rect.h - 20, 200)
     };
-    // 候補位置を走査
-    for (let y = y0; y <= maxY; y++) {
-      for (let x = x0; x <= maxX; x++) {
-        let valid = true;
 
-        // 上段：#232930
-        let i = (y * srcW + x) * 4;
+    // 各辺のテンプレートを順にマッチング
+    let matchcount = 0;
+    const minMatch = o.matchsidenum;
+    for (const side of o.sides) {
+      if (!side.rgba || side.rgba.length === 0) continue;
 
-        for (let dx = 0; dx < this.WIDTH; dx++) {
-          if (!matches(i + dx * 4, topColor, topTol)) {
-            valid = false;
-            break;
-          }
-        }
-
-        if (!valid) continue;
-
-        // 下2段：#354249
-        for (let dy = 1; dy <= 2 && valid; dy++) {
-          i = ((y + dy) * srcW + x) * 4;
-
-          for (let dx = 0; dx < this.WIDTH; dx++) {
-            if (!matches(i + dx * 4, bottomColor, bottomTol)) {
-              valid = false;
-              break;
-            }
-          }
-        }
-
-        if (valid) return true;
+      const matchResult = match_image(
+        { src, srcW, srcH, srcRect: searchRect },
+        { match: side.rgba, matchW: side.w, matchH: side.h },
+        side.tol,
+        o.cover,
+        false
+      );
+      if (matchResult.length > 0) {
+        matchcount++;
+        if (matchcount >= minMatch) return true;
       }
     }
 
     return false;
   }
 }
-
+ItemTooltipChecker.init();
 
 /*
   // 範囲が装備ツールチップであるか判定
