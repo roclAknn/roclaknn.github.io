@@ -6,9 +6,6 @@
 
   // 汎用画像判定を提供
   // 汎用文字生成、文字判定処理を提供。ステータス数値のOCRなどに
-  
-  // 使用する場合はItemTooltipCheckerの画像ファイル参照先を変更してください
-  // ローカルでは画像ファイルの読み込みは動きません。装備判定は可能です
 */
 
 /*
@@ -337,15 +334,17 @@ function match_image(
 /*
   // 範囲がアイテムツールチップかどうかを判定する
   // 装備かどうかなど細分化は別判定
+  // 探査画像をロード方式から埋め込みに変更
+  // ロード方式は残しておく
 */
 class ItemTooltipChecker {
   static initialized = false;
   static initPromise = null;
-
   static defaultOptions = {
     sides: ['top', 'bottom', 'left', 'right'].map((k, i) => ({
-        path: "https://roclaknn.github.io/tools/images/item_frame_" + k[0] + ".bmp",
-        rgba: [], // pathを読み込み、rgba配列と縦横長をキャッシュ
+        side: k,
+        path: "https://roclaknn.github.io/tools/images/item_frame_" + k[0] + ".bmp", // 埋込式では不使用
+        rgba: [],
         w: 0,
         h: 0,
         tol: [15, 15, 15, 15][i], // 各辺の許容差 (RGB空間のユークリッド距離)
@@ -381,10 +380,79 @@ class ItemTooltipChecker {
   }
 
   /**
+   * すべての辺の画像情報（コードとして埋め込んである）を書き込む
+   * base64で記述しておきデコードして書き込む
+   */
+  static init() {
+    if (this.initialized) return;
+    const data = {
+      top: {
+        rgba:
+          'd4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS' +
+          '/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eE' +
+          'kv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93' +
+          'hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/3eEkv93hJL/d4SS/5+nsf+hqbP/oamz/6Gps/+hqbP/' +
+          'oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz' +
+          '/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gp' +
+          's/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+h' +
+          'qbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/5+nsf8=',
+          w: 70, h: 2,
+
+      },
+      bottom: {
+        rgba:
+          '19jY/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ' +
+          '/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ' +
+          '2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y' +
+          '2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/2NnZ/9jZ2f/Y2dn/19jY/8jIyf/IyMn/yMjJ/8jIyf/IyMn/' +
+          'yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ' +
+          '/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jI' +
+          'yf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/I' +
+          'yMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf/IyMn/yMjJ/8jIyf8=',
+        w: 70, h: 2,
+      },
+      left: {
+        rgba:
+          'eYWT/5+osv96hpT/oqu0/3qGlP+iq7T/e4eU/6OrtP98h5X/pKu1/3yIlf+krLX/fYmW/6Sttv9+iZb/pa22/3+Kl/+mrbb/gIuX' +
+          '/6autv+Ai5j/pq63/4GMmP+nr7f/go2Z/6ivuP+DjZn/qK+4/4SOmv+psLj/hY+a/6qxuP+GkJv/q7K5/4eQm/+rsrn/iJGc/6yy' +
+          'uv+Jkpz/rbO6/4qTnf+ttLv/i5Se/660u/+MlJ7/r7S7/42Vn/+vtbz/jpaf/7C2vP+Pl6D/sba9/5CYof+yt73/kZmh/7K4vf+S' +
+          'mqL/s7i+/5Oao/+0uL//lJuj/7S5v/+VnKT/tbq//5adpf+2u8D/l56l/7a7wP+Yn6b/t7zB/5mfpv+4vMH/mqCn/7i9wv+boaj/' +
+          'ub3C/52iqP+7vsL/naOp/7u/w/+epKr/u7/E/5+kqv+8v8T/oKWr/73AxP+hpqv/vcHE/6KnrP++wsX/o6is/7/Cxf+kqK3/v8LG' +
+          '/6Wprv/Aw8b/pqqu/8HExv+nqq//wsTH/6err//CxMf/qKyw/8LFyP+prLD/w8XI/6qtsf/Exsn/q66y/8TGyf+tsLP/xsjK/6+y' +
+          'tf/Hycv/sbO2/8nKzP+ztbf/ysvN/7W3uf/Lzc7/tri6/8zNz/+4urz/zc/Q/7q7vf/P0NH/u72+/9DR0v+9vsD/0dLT/77Awf/S' +
+          '09T/wMHC/9PU1P/BwsT/1NTW/8LDxf/U1df/xMXG/9XW1v8=',
+        w: 2, h: 70,
+      },
+      right: {
+        rgba:
+          'n6iy/3mFk/+iq7T/eoaU/6KrtP96hpT/o6u0/3uHlP+kq7X/fIeV/6Sstf98iJX/pK22/32Jlv+lrbb/fomW/6attv9/ipf/pq62' +
+          '/4CLl/+mrrf/gIuY/6evt/+BjJj/qK+4/4KNmf+or7j/g42Z/6mwuP+Ejpr/qrG4/4WPmv+rsrn/hpCb/6uyuf+HkJv/rLK6/4iR' +
+          'nP+ts7r/iZKc/620u/+Kk53/rrS7/4uUnv+vtLv/jJSe/6+1vP+NlZ//sLa8/46Wn/+xtr3/j5eg/7K3vf+QmKH/sri9/5GZof+z' +
+          'uL7/kpqi/7S4v/+TmqP/tLm//5Sbo/+1ur//lZyk/7a7wP+WnaX/trvA/5eepf+3vMH/mJ+m/7i8wf+Zn6b/uL3C/5qgp/+5vcL/' +
+          'm6Go/7u+wv+doqj/u7/D/52jqf+7v8T/nqSq/7y/xP+fpKr/vcDE/6Clq/+9wcT/oaar/77Cxf+ip6z/v8LF/6OorP+/wsb/pKit' +
+          '/8DDxv+lqa7/wcTG/6aqrv/CxMf/p6qv/8LEx/+nq6//wsXI/6issP/Dxcj/qayw/8TGyf+qrbH/xMbJ/6uusv/GyMr/rbCz/8fJ' +
+          'y/+vsrX/ycrM/7Gztv/Ky83/s7W3/8vNzv+1t7n/zM3P/7a4uv/Nz9D/uLq8/8/Q0f+6u73/0NHS/7u9vv/R0tP/vb7A/9LT1P++' +
+          'wMH/09TU/8DBwv/U1Nb/wcLE/9TV1//Cw8X/1dbW/8TFxv8=',
+        w: 2, h: 70,
+      },
+    };
+    this.defaultOptions.sides.forEach(side => {
+      const k = side.side;
+      const d = data[k];
+      d.rgba = Uint8ClampedArray.from(atob(d.rgba), c => c.charCodeAt(0));
+      Object.assign(side, d);
+      d.rgba = "";
+    });
+    this.initialized = true;
+  }
+
+  /**
    * すべての辺の画像を非同期で読み込む
    * @returns {Promise<void>}
    */
+  /*
   static async init() {
+    
     if (this.initialized) return;
     if (this.initPromise) return this.initPromise;
 
@@ -404,6 +472,7 @@ class ItemTooltipChecker {
 
     return this.initPromise;
   }
+    */
 
   /**
    * アイテムツールチップかどうかを判定する。
