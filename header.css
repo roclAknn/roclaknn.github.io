@@ -1,0 +1,134 @@
+:root {
+  --header-background-color: #fbfbfb;
+  --header-background-color-hover: #f0f0f0;
+  --header-border-radius: 8px;
+  --header-border-color: #1d1d1d;
+}
+
+body {
+  padding-top: 50px;
+}
+
+main.left {
+  justify-content: left;
+}
+
+main.center {
+  /* space-aroundでは基本はcenterと同じで、はみ出る場合に左揃えになる */
+  justify-content: space-around;
+}
+
+main.right {
+  justify-content: right;
+}
+
+main.fit {
+  justify-content: center !important;
+}
+
+header {
+  color: #141414;
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 40px;
+  border-bottom: 0.5px solid #1d1d1d;
+  background: var(--header-background-color);
+  gap: 12px;
+  margin-bottom: 10px;
+  box-sizing: content-box;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+.header-dropdown-wrapper {
+  display: flex;
+}
+
+.header-scalingbtn,
+.header-alignbtn {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: fit-content;
+  height: fit-content;
+  background: transparent;
+}
+
+header .pressed {
+  outline: inset 1px #eee;
+  outline-offset: -4px;
+  border-radius: var(--header-border-radius);
+}
+
+.header-alignbtn .icon-btn:not(.active) {
+  display: none;
+}
+
+header .icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+  border-radius: var(--header-border-radius);
+  cursor: pointer;
+}
+
+header .icon-btn:hover {
+  background: var(--header-background-color-hover);
+}
+
+header .icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.header-title {
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+}
+
+header .dropdown {
+  position: absolute;
+  top: 40px;
+  left: 0px;
+  background: var(--header-background-color);
+  border: 0.5px solid var(--header-border-color);
+  border-left: 0;
+  border-radius: 0 0 var(--header-border-radius) 0;
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 100;
+  min-width: 180px;
+  box-shadow: none;
+}
+
+header .dropdown.open {
+  display: flex
+}
+
+header .dropdown a {
+  font-size: 13px;
+  text-decoration: none;
+  padding: 7px 10px;
+  border-radius: var(--header-border-radius);
+  transition: background 0.12s;
+}
+
+.dropdown a:hover {
+  background: var(--header-background-color-hover);
+}
