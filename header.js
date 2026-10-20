@@ -81,7 +81,7 @@ function buildHeader(title, linkEntries) {
   let pos = getCookie("align");
   let scale = getCookie("scale");
   changeFitScaleType(scale || "fit"); //cookieへの追加もされる
-  changeAlign(pos || "left"); //cookieへの追加もされる
+  changeAlign(pos || "center"); //cookieへの追加もされる
 }
 
 function toggleMenu() {
