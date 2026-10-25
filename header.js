@@ -12,7 +12,7 @@ function buildHeader(title, linkEntries) {
     ...(linkEntries ?? []),
     ["キューブ計算器", "https://roclaknn.github.io/EV-Cube-Calculator/"],
     ["転生の炎計算器", "https://roclaknn.github.io/EV-RebirthFlame/"],
-    ["インナーアビリティ確率表", "https://roclaknn.github.io/EV-InnerAbility/"],
+    ["インナーアビリティ計算器", "https://roclaknn.github.io/EV-InnerAbility/"],
     ["ステータス効率計算器", "https://roclaknn.github.io/MapleStory-StatusCalc/"],
     ["ツールチップ切り取りツール", "https://roclaknn.github.io/tooltip_cropper/"],
   ];
