@@ -75,7 +75,7 @@ class DetectTooltips {
     overlapThrethold: 1,
   };
   static run(d, W, H, o = {}) {
-    o = {...this.defaultOptions, ...o};
+    o = { ...this.defaultOptions, ...o };
     const MINLEN = o.minLen, GAP = 2, MINH = 100, CUT = 10; // CUT: 角の欠け・ずれの許容px
     const N = W * H, W4 = W * 4;
     const BIT_TOP = 1, BIT_BOT = 2, BIT_LEFT = 4, BIT_RIGHT = 8;
@@ -168,7 +168,7 @@ class DetectTooltips {
       if (yb <= ya) return { x: best, score: 0 };
       a = Math.max(a, 0); b = Math.min(b, W - 1);
       if (leftmost) { for (let x = a; x <= b; x++) { const f = colFrac(x, ya, yb, bit); if (f > bestScore) { bestScore = f; best = x; } } }
-      else          { for (let x = b; x >= a; x--) { const f = colFrac(x, ya, yb, bit); if (f > bestScore) { bestScore = f; best = x; } } }
+      else { for (let x = b; x >= a; x--) { const f = colFrac(x, ya, yb, bit); if (f > bestScore) { bestScore = f; best = x; } } }
       return { x: best, score: Math.max(bestScore, 0) };
     }
 
@@ -192,10 +192,10 @@ class DetectTooltips {
         // 上辺と下辺が左右方向にある程度重なっている場合だけ対象にする(途切れて短くなった候補同士でも組めるように、端の一致は要求しない)
         const type = o.overlapType;
         const threthold = o.overlapThrethold;
-        if (type === "percent"){
+        if (type === "percent") {
           // 短い方のX％以上が重なっている
           if (Math.min(T.e, B.e) - Math.max(T.s, B.s) < threthold * Math.min(T.e - T.s, B.e - B.s)) continue;
-        } else if (type === "pixel"){
+        } else if (type === "pixel") {
           if (Math.min(T.e, B.e) - Math.max(T.s, B.s) < threthold) continue;
         } else {
           // 無条件
@@ -233,7 +233,7 @@ class DetectTooltips {
       }
       if (!found && !why.length) why.push('組める下辺候補がない');
       let logtext = head;
-      if (found) logtext +=  'found! '+ foundtag;
+      if (found) logtext += 'found! ' + foundtag;
       if (why.length > 0) logtext += ["", ...why.slice(0, 3)].join("\n\t");
       log.push(logtext);
     }
@@ -245,14 +245,14 @@ class DetectTooltips {
     for (const c of candidates) {
       if (rects.some(r => {
         // 重複する候補を除外
-        if ( c.x === r.x && c.y === r.y && c.w === r.w && c.h === r.h) return true;
+        if (c.x === r.x && c.y === r.y && c.w === r.w && c.h === r.h) return true;
         return false;
       })) continue;
       rects.push({ x: c.x, y: c.y, w: c.w, h: c.h });
     }
 
     // 他の候補を内包する候補は除外する
-    const filterdRects = rects.filter(r => 
+    const filterdRects = rects.filter(r =>
       !rects.some(r2 => {
         return r !== r2
           && r.x <= r2.x
@@ -261,7 +261,7 @@ class DetectTooltips {
           && r2.y + r2.h <= r.y + r.h
       })
     );
-    
+
     return { rects: filterdRects, tops, bots, lefts, rights, log };
   }
 }
@@ -273,10 +273,10 @@ class DetectTooltips {
  * @returns {rects}
  */
 function match_image(
-  {src, srcW, srcH, srcRect={}},
-  {match, matchW, matchH, matchRect={}},
-  tol=20, cover=0.8, isMulti=false
-){
+  { src, srcW, srcH, srcRect = {} },
+  { match, matchW, matchH, matchRect = {} },
+  tol = 20, cover = 0.8, isMulti = false
+) {
   /*
     範囲から画像マッチ
     tolは色の許容差 (RGB空間のユークリッド距離)。各色差の2乗の和とtolの2乗を比較
@@ -342,13 +342,13 @@ class ItemTooltipChecker {
   static initPromise = null;
   static defaultOptions = {
     sides: ['top', 'bottom', 'left', 'right'].map((k, i) => ({
-        side: k,
-        path: "https://roclaknn.github.io/tools/images/item_frame_" + k[0] + ".bmp", // 埋込式では不使用
-        rgba: [],
-        w: 0,
-        h: 0,
-        tol: [15, 15, 15, 15][i], // 各辺の許容差 (RGB空間のユークリッド距離)
-      })),
+      side: k,
+      path: "https://roclaknn.github.io/tools/images/item_frame_" + k[0] + ".bmp", // 埋込式では不使用
+      rgba: [],
+      w: 0,
+      h: 0,
+      tol: [15, 15, 15, 15][i], // 各辺の許容差 (RGB空間のユークリッド距離)
+    })),
     cover: 0.8,
     matchsidenum: 2, // マッチする辺の目標数（巨大アイコンやカーソルの重なりを考慮する）
   };
@@ -396,7 +396,7 @@ class ItemTooltipChecker {
           '/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gp' +
           's/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/6Gps/+h' +
           'qbP/oamz/6Gps/+hqbP/oamz/6Gps/+hqbP/oamz/5+nsf8=',
-          w: 70, h: 2,
+        w: 70, h: 2,
 
       },
       bottom: {
@@ -485,7 +485,7 @@ class ItemTooltipChecker {
    */
   static run(src, srcW, srcH, rect, o = {}) {
     if (!this.initialized) return false; // 未初期化なら不一致扱い
-    o = {...this.defaultOptions, ...o};
+    o = { ...this.defaultOptions, ...o };
 
     // rect内の探査範囲（相対座標）
     const searchRect = {
@@ -522,7 +522,7 @@ ItemTooltipChecker.init();
 /*
   // 範囲が装備ツールチップであるか判定
   // 元画像＋ツールチップRectから文字探査して判定する
-*/ 
+*/
 class EquipmentTooltipChecker {
   static FONT = "ＭＳ Ｐゴシック";
   static PIXEL = 12;
@@ -544,7 +544,7 @@ class EquipmentTooltipChecker {
   // rect: DetectTooltips.run() が返す矩形 {x, y, w, h}
   // true: 「戦」または「量」を検出
   static run(src, srcW, srcH, rect, o = {}) {
-    o = {...this.defaultOptions, ...o};
+    o = { ...this.defaultOptions, ...o };
 
     const area = {
       x: rect.x,
@@ -706,7 +706,7 @@ function findTextRGBA(src, srcW, srcH, template, rect, options = {}) {
   // 候補画素が指定色に近いか判定
   function isTargetColor(i) {
     return (
-      Math.abs(src[i]     - 133) <= tol &&
+      Math.abs(src[i] - 133) <= tol &&
       Math.abs(src[i + 1] - 145) <= tol &&
       Math.abs(src[i + 2] - 159) <= tol
     );
@@ -724,7 +724,7 @@ function findTextRGBA(src, srcW, srcH, template, rect, options = {}) {
         const i = (base + p[1] * srcW + p[0]) * 4;
 
         if (
-          Math.abs(src[i]     - p[2]) > tol ||
+          Math.abs(src[i] - p[2]) > tol ||
           Math.abs(src[i + 1] - p[3]) > tol ||
           Math.abs(src[i + 2] - p[4]) > tol
         ) {
@@ -757,3 +757,76 @@ function findTextRGBA(src, srcW, srcH, template, rect, options = {}) {
   return false;
 }
 
+
+class MakeCornerTransparent {
+  static width = 9;
+  static height = 8;
+  static topleft;
+  static topright;
+  static bottomleft;
+  static bottomright;
+  static init() {
+    // 各値は不透明度(0=完全透明, 255=不透明)。左上の角を基準に他3つへ反転コピーする
+    const tl = this.topleft = [
+      0, 0, 0, 0, 0, 9, 126, 211, 253,
+      0, 0, 0, 0, 119, 251, 255, 255, 255,
+      0, 0, 5, 184, 255, 255, 255, 255, 255,
+      0, 0, 184, 255, 255, 255, 255, 255, 255,
+      0, 123, 255, 255, 255, 255, 255, 255, 255,
+      9, 255, 255, 255, 255, 255, 255, 255, 255,
+      131, 255, 255, 255, 255, 255, 255, 255, 255,
+      216, 255, 255, 255, 255, 255, 255, 255, 255
+    ];
+
+    const len = tl.length;
+    const tr = this.topright = new Array(len),
+      bl = this.bottomleft = new Array(len),
+      br = this.bottomright = new Array(len);
+
+    tl.forEach((pxd, i) => {
+      const w = this.width, h = this.height;
+      const x = i % w, y = ~~(i / w);
+      tr[(w - 1 - x) + y * w]
+        = bl[x + (h - 1 - y) * w]
+        = br[(w - 1 - x) + (h - 1 - y) * w]
+        = pxd;
+    });
+  }
+
+  /**
+   * 四隅を透明化した新しいCanvasを返す(元のCanvasは変更しない)
+   * 既存のアルファ値に角のマスク(0〜255)を掛けるので、元から透明な部分はそのまま
+   * @param {HTMLCanvasElement} src 切り抜き済みの画像
+   * @returns {HTMLCanvasElement}
+   */
+  static run(src) {
+    const W = src.width, H = src.height;
+    const out = document.createElement('canvas');
+    out.width = W; out.height = H;
+    const g = out.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, 0, 0);
+
+    const mw = this.width, mh = this.height;
+    if (W < mw * 2 || H < mh * 2) return out;   // 小さすぎて角が重なる場合は何もしない
+
+    const img = g.getImageData(0, 0, W, H);
+    const d = img.data;
+    const apply = (mask, ox, oy) => {
+      for (let y = 0; y < mh; y++) {
+        for (let x = 0; x < mw; x++) {
+          const m = mask[y * mw + x];
+          if (m >= 255) continue;
+          const p = ((oy + y) * W + ox + x) * 4 + 3;
+          d[p] = Math.round(d[p] * m / 255);
+        }
+      }
+    };
+    apply(this.topleft, 0, 0);
+    apply(this.topright, W - mw, 0);
+    apply(this.bottomleft, 0, H - mh);
+    apply(this.bottomright, W - mw, H - mh);
+    g.putImageData(img, 0, 0);
+    return out;
+  }
+}
+MakeCornerTransparent.init();
