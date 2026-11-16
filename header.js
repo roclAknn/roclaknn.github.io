@@ -15,7 +15,7 @@ function buildHeader(title, linkEntries) {
     ["インナーアビリティ", "https://roclaknn.github.io/EV-InnerAbility/"],
     ["イニスの宝玉(研磨)", "https://roclaknn.github.io/BloodMoon-PolishingSim/"],
     ["ステータス効率計算器", "https://roclaknn.github.io/MapleStory-StatusCalc/"],
-    ["ツールチップ切り取りツール", "https://roclaknn.github.io/tooltip_cropper/"],
+    ["装備画像切り抜きツール", "https://roclaknn.github.io/tooltip_cropper/"],
   ];
 
   const link = document.createElement('link');
