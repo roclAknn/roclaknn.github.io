@@ -10,9 +10,10 @@ function buildHeader(title, linkEntries) {
 
   linkEntries = [
     ...(linkEntries ?? []),
-    ["キューブ計算器", "https://roclaknn.github.io/EV-Cube-Calculator/"],
-    ["転生の炎計算器", "https://roclaknn.github.io/EV-RebirthFlame/"],
-    ["インナーアビリティ計算器", "https://roclaknn.github.io/EV-InnerAbility/"],
+    ["キューブ", "https://roclaknn.github.io/EV-Cube-Calculator/"],
+    ["転生の炎", "https://roclaknn.github.io/EV-RebirthFlame/"],
+    ["インナーアビリティ", "https://roclaknn.github.io/EV-InnerAbility/"],
+    ["イニスの宝玉(研磨)", "https://roclaknn.github.io/BloodMoon-PolishingSim/"],
     ["ステータス効率計算器", "https://roclaknn.github.io/MapleStory-StatusCalc/"],
     ["ツールチップ切り取りツール", "https://roclaknn.github.io/tooltip_cropper/"],
   ];
