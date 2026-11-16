@@ -84,6 +84,7 @@ header {
   display: flex;
   align-items: center;
   gap: 6px;
+  width: max-content;
   padding: 0 24px;
   margin: 0 auto; /* 中央揃え */
   width: 100%;
